@@ -1,0 +1,35 @@
+<html>
+<head>
+    <title>Login</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+    <div class="logo">
+            <h1>Cluviora</h1>
+            <p>Volunteer & Club Management Platform</p>
+    </div>
+
+
+    <div class="auth-card">
+    <h1>Login</h1>
+    <!-- Sends the username and password to the Node.js server -->
+    <form action="/login" method="POST">
+
+        <label>Username:</label>
+        <input type="text" name="username" required><br>
+
+        <label>Password:</label>
+        <input type="password" name="password" required><br>
+
+        <button type="submit" class="auth-btn">Login</button>
+
+    </form>
+
+    <p>Don't have an account?
+        <a href="register.html">Register here</a>
+    </p>
+    </div>
+
+</body>
+</html>
