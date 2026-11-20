@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-page">
+
+<div class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <a href="/admin" class="sidebar-logo">
+            ❤️ Volunteer Hub
+        </a>
+
+        <p class="sidebar-label">ADMIN MENU</p>
+
+        <nav class="sidebar-nav">
+            <a href="#overview" class="selected">
+                🏠 Overview
+            </a>
+
+            <a href="#manageClubs">
+                👥 Manage Clubs
+            </a>
+
+            <a href="#manageEvents">
+                📅 Manage Opportunities
+            </a>
+
+            <a href="#attendance">
+                ✅ Attendance & Hours
+            </a>
+
+            <a href="#statistics">
+                📊 Statistics
+            </a>
+        </nav>
+
+        <a href="/logout" class="sidebar-logout">
+            ↪ Logout
+        </a>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+
+        <header class="dashboard-header">
+            <div>
+                <h1>Admin Dashboard</h1>
+                <p>
+                    Welcome, <span id="adminName">Administrator</span>!
+                </p>
+            </div>
+
+            <div class="header-user">
+                <span class="user-avatar">🛡️</span>
+                <span>Admin</span>
+            </div>
+        </header>
+
+        <!-- Overview -->
+        <section id="overview" class="dashboard-section">
+
+            <div class="welcome-banner">
+                <h2>Manage Your Volunteer Community</h2>
+                <p>
+                    Create clubs, organize volunteer events,
+                    manage registrations, and track student
+                    participation.
+                </p>
+            </div>
+
+            <h2>Platform Overview</h2>
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <h3 id="totalClubs">—</h3>
+                    <p>Total Clubs</p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <h3 id="totalOpportunities">—</h3>
+                    <p>Volunteer Opportunities</p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📋</div>
+                    <h3 id="totalRegistrations">—</h3>
+                    <p>Event Registrations</p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <h3 id="totalVerifiedHours">—</h3>
+                    <p>Verified Volunteer Hours</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Manage Clubs -->
+        <section id="manageClubs" class="dashboard-section">
+            <div class="section-heading">
+                <h2>Manage Clubs</h2>
+                <button type="button" class="dashboard-btn"
+                        id="addClubBtn">
+                    + Add Club
+                </button>
+            </div>
+
+            <div class="content-panel">
+                <p>
+                    Create, edit, and manage student clubs.
+                </p>
+
+                <div id="clubsList">
+                    <p class="empty-message">
+                        Club management will be connected
+                        to the database next.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Manage Opportunities -->
+        <section id="manageEvents" class="dashboard-section">
+            <div class="section-heading">
+                <h2>Manage Volunteer Opportunities</h2>
+                <button type="button" class="dashboard-btn"
+                        id="addOpportunityBtn">
+                    + Add Opportunity
+                </button>
+            </div>
+
+            <div class="content-panel">
+                <p>
+                    Create and manage volunteer events
+                    for student clubs.
+                </p>
+
+                <div id="opportunitiesList">
+                    <p class="empty-message">
+                        Opportunities will appear here
+                        after connecting the database.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Attendance -->
+        <section id="attendance" class="dashboard-section">
+            <h2>Attendance & Volunteer Hours</h2>
+
+            <div class="content-panel">
+                <p>
+                    Review event attendance and verify
+                    students' volunteer hours.
+                </p>
+
+                <div id="attendanceList">
+                    <p class="empty-message">
+                        Attendance records will appear here.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Statistics -->
+        <section id="statistics" class="dashboard-section">
+            <h2>Participation Statistics</h2>
+
+            <div class="content-panel">
+                <p>
+                    View participation trends, club memberships,
+                    and verified volunteer hours.
+                </p>
+
+                <div id="statisticsContent">
+                    <p class="empty-message">
+                        Statistics will appear here once
+                        the database endpoints are implemented.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<script src="/js/admin.js"></script>
+</body>
+</html>

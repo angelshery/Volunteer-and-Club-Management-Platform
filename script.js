@@ -13,17 +13,73 @@ app.use(session({
     saveUninitialized: false          // no maxAge: login lasts until the browser closes
 }));
 
-// Pages for logged-in users live, so they must come BEFORE express.static
-function pageGuard(file) {
-    return (req, res) => {
-        if (req.session.username) res.sendFile(path.join(__dirname, file));
-        else res.redirect("/login.html");
-    };
+
+/* PROTECT DASHBOARD PAGES */
+
+// Check whether user is logged in
+function requireLogin(req, res, next) {
+    if (!req.session.username) {
+        return res.redirect("/login.html");
+    }
+    next();
 }
-app.get("/dashboard", pageGuard("dashboard.html"));
 
-app.use(express.static("public"));
+// Check whether user is an admin
+function requireAdmin(req, res, next) {
+    if (!req.session.username) {
+        return res.redirect("/login.html");
+    }
 
+    if (req.session.role !== "admin") {
+        return res.status(403).send("Access denied");
+    }
+
+    next();
+}
+
+// STUDENT DASHBOARD
+app.get("/dashboard", requireLogin, (req, res) => {
+
+    if (req.session.role !== "student") {
+        return res.redirect("/admin");
+    }
+
+    res.sendFile(
+        path.join(__dirname, "public", "dashboard.html")
+    );
+});
+
+// ADMIN DASHBOARD
+app.get("/admin", requireAdmin, (req, res) => {
+
+    res.sendFile(
+        path.join(__dirname, "public", "admin.html")
+    );
+});
+
+// Prevent direct access to protected HTML pages
+app.use((req, res, next) => {
+
+    if (req.path === "/dashboard.html") {
+        return requireLogin(req, res, () => {
+            if (req.session.role !== "student") {
+                return res.status(403).send("Access denied");
+            }
+            next();
+        });
+    }
+
+    if (req.path === "/admin.html") {
+        return requireAdmin(req, res, next);
+    }
+
+    next();
+});
+
+// Serve public HTML, CSS and JavaScript files
+app.use(express.static(path.join(__dirname, "public")));
+
+//Connection to MySQL
 const conn = mysql.createConnection({
     host: "localhost",
     user: "root",
@@ -84,8 +140,14 @@ app.post("/login", function (req, res) {
         req.session.role     = result[0].role;
 
         req.session.save(function (err) {
-            if (err) return res.send("Error saving session");
+            if (err) {
+                return res.send("Error saving session");
+            }
+            if (req.session.role === "admin") {
+                res.redirect("/admin");
+            } else{
             res.redirect("/dashboard");
+            }
         });
     });
 });

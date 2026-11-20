@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard | Cluviora</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="dashboard-page">
+
+<div class="app-layout">
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <a href="/dashboard" class="sidebar-logo">
+            ❤️ Volunteer Hub
+        </a>
+
+        <p class="sidebar-label">STUDENT MENU</p>
+
+        <nav class="sidebar-nav">
+            <a href="/dashboard" class="selected">
+                🏠 Dashboard
+            </a>
+
+            <a href="/clubs.html">
+                👥 Explore Clubs
+            </a>
+
+            <a href="/opportunities.html">
+                📅 Opportunities
+            </a>
+
+            <a href="/my-events.html">
+                📋 My Events
+            </a>
+
+            <a href="/profile.html">
+                👤 My Profile
+            </a>
+        </nav>
+
+        <a href="/logout" class="sidebar-logout">
+            ↪ Logout
+        </a>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="dashboard-main">
+
+        <header class="dashboard-header">
+            <div>
+                <h1>Student Dashboard</h1>
+                <p>Welcome back, <span id="studentName">Student</span>!</p>
+            </div>
+
+            <div class="header-user">
+                <span class="user-avatar">👤</span>
+                <span id="headerName">Student</span>
+            </div>
+        </header>
+
+        <!-- Welcome Banner -->
+        <section class="welcome-banner">
+            <h2>Make an Impact Today!</h2>
+            <p>
+                Explore student clubs, discover volunteer
+                opportunities, and track your community
+                involvement in one place.
+            </p>
+
+            <a href="/opportunities.html" class="dashboard-btn">
+                Find Opportunities
+            </a>
+        </section>
+
+        <!-- Statistics -->
+        <section class="dashboard-section">
+            <h2>Your Activity Overview</h2>
+
+            <div class="stats-grid">
+
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <h3 id="clubsJoined">—</h3>
+                    <p>Clubs Joined</p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <h3 id="registeredEvents">—</h3>
+                    <p>Registered Events</p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <h3 id="volunteerHours">—</h3>
+                    <p>Verified Volunteer Hours</p>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-icon">✅</div>
+                    <h3 id="eventsAttended">—</h3>
+                    <p>Events Attended</p>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="dashboard-section">
+            <h2>Quick Actions</h2>
+
+            <div class="quick-actions">
+
+                <div class="action-card">
+                    <h3>👥 Join a Club</h3>
+                    <p>
+                        Discover organizations that match
+                        your interests and skills.
+                    </p>
+                    <a href="/clubs.html">Explore Clubs →</a>
+                </div>
+
+                <div class="action-card">
+                    <h3>📅 Find Volunteer Events</h3>
+                    <p>
+                        Browse upcoming opportunities and
+                        register for events.
+                    </p>
+                    <a href="/opportunities.html">
+                        Browse Events →
+                    </a>
+                </div>
+
+                <div class="action-card">
+                    <h3>👤 Complete Your Profile</h3>
+                    <p>
+                        Add your interests, skills, and
+                        availability for better recommendations.
+                    </p>
+                    <a href="/profile.html">
+                        Update Profile →
+                    </a>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Upcoming Events -->
+        <section class="dashboard-section">
+            <div class="section-heading">
+                <h2>My Upcoming Events</h2>
+                <a href="/my-events.html">View All →</a>
+            </div>
+
+            <div class="content-panel" id="upcomingEvents">
+                <p class="empty-message">
+                    Event information will appear here
+                    once you register for opportunities.
+                </p>
+            </div>
+        </section>
+
+        <!-- Recommendations -->
+        <section class="dashboard-section">
+            <h2>Recommended For You</h2>
+
+            <div class="content-panel" id="recommendations">
+                <p class="empty-message">
+                    Personalized opportunities will appear
+                    here based on your interests and skills.
+                </p>
+            </div>
+        </section>
+
+    </main>
+</div>
+
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
