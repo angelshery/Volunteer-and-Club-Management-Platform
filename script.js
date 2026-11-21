@@ -72,6 +72,14 @@ app.use((req, res, next) => {
     if (req.path === "/admin.html") {
         return requireAdmin(req, res, next);
     }
+    if (req.path === "/profile.html") {
+    return requireLogin(req, res, () => {
+        if (req.session.role !== "student") {
+            return res.status(403).send("Access denied");
+        }
+        next();
+    });
+}
 
     next();
 });
@@ -167,6 +175,285 @@ app.get("/logout", function (req, res) {
     });
 });
 
+// ===== STUDENT PROFILE API =====
+
+// Require a logged-in student for profile API requests
+function requireStudentApi(req, res, next) {
+    if (!req.session.userId) {
+        return res.status(401).json({
+            error: "Please log in first"
+        });
+    }
+
+    if (req.session.role !== "student") {
+        return res.status(403).json({
+            error: "Student access only"
+        });
+    }
+
+    next();
+}
+
+// GET: Load the logged-in student's profile
+app.get("/api/profile", requireStudentApi, function (req, res) {
+    const sql = `
+        SELECT username, fname, lname, email,
+               interests, skills, availability
+        FROM users
+        WHERE id = ?
+    `;
+
+    conn.query(sql, [req.session.userId], function (err, results) {
+        if (err) {
+            console.error("Profile load error:", err);
+            return res.status(500).json({
+                error: "Could not load profile"
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({
+                error: "User not found"
+            });
+        }
+
+        res.json(results[0]);
+    });
+});
+
+// PUT: Save the logged-in student's preferences
+app.put("/api/profile", requireStudentApi, function (req, res) {
+    const { interests, skills, days, preferredTime } = req.body;
+
+    const allowedInterests = [
+        "Technology", "Education", "Environment",
+        "Healthcare", "Community Service", "Animals",
+        "Arts & Culture", "Sports"
+    ];
+
+    const allowedSkills = [
+        "Programming", "Tutoring", "Communication",
+        "Leadership", "Event Planning", "Graphic Design",
+        "First Aid", "Photography"
+    ];
+
+    const allowedDays = [
+        "Monday", "Tuesday", "Wednesday", "Thursday",
+        "Friday", "Saturday", "Sunday"
+    ];
+
+    const allowedTimes = [
+        "Anytime", "Morning", "Afternoon", "Evening"
+    ];
+
+    function validSelection(values, allowed) {
+        return Array.isArray(values) &&
+            values.every(value =>
+                typeof value === "string" &&
+                allowed.includes(value)
+            );
+    }
+
+    if (
+        !validSelection(interests, allowedInterests) ||
+        !validSelection(skills, allowedSkills) ||
+        !validSelection(days, allowedDays) ||
+        !allowedTimes.includes(preferredTime)
+    ) {
+        return res.status(400).json({
+            error: "Invalid profile preferences"
+        });
+    }
+
+    const interestsText = [...new Set(interests)].join(",");
+    const skillsText = [...new Set(skills)].join(",");
+    const availabilityText =
+        [...new Set(days)].join(",") + "|" + preferredTime;
+
+    if (
+        interestsText.length > 255 ||
+        skillsText.length > 255 ||
+        availabilityText.length > 255
+    ) {
+        return res.status(400).json({
+            error: "Profile preferences are too long"
+        });
+    }
+
+    const sql = `
+        UPDATE users
+        SET interests = ?, skills = ?, availability = ?
+        WHERE id = ?
+    `;
+
+    conn.query(
+        sql,
+        [
+            interestsText,
+            skillsText,
+            availabilityText,
+            req.session.userId
+        ],
+        function (err, result) {
+            if (err) {
+                console.error("Profile save error:", err);
+                return res.status(500).json({
+                    error: "Could not save profile"
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    error: "User not found"
+                });
+            }
+
+            res.json({
+                message: "Profile saved successfully!"
+            });
+        }
+    );
+});
+
+// CREATE CLUB - Admin only
+app.post("/api/clubs", requireAdmin, function (req, res) {
+
+    const { name, category, description } = req.body;
+
+    // Validate the form inputs
+    if (
+        typeof name !== "string" ||
+        typeof category !== "string" ||
+        typeof description !== "string" ||
+        !name.trim() ||
+        !category.trim() ||
+        !description.trim() ||
+        name.trim().length > 150
+    ) {
+        return res.status(400).json({
+            error: "Please enter valid club details"
+        });
+    }
+
+    // SQL query to insert a new club
+    const sql = `
+        INSERT INTO clubs
+        (name, category, description, created_by)
+        VALUES (?, ?, ?, ?)
+    `;
+
+    conn.query(
+        sql,
+        [
+            name.trim(),
+            category.trim(),
+            description.trim(),
+            req.session.userId
+        ],
+        function (err, result) {
+
+            if (err) {
+                console.error("Error creating club:", err);
+
+                return res.status(500).json({
+                    error: "Could not create club"
+                });
+            }
+
+            res.status(201).json({
+                message: "Club created successfully!",
+                clubId: result.insertId
+            });
+        }
+    );
+});
+
+// READ CLUBS - Admin only
+app.get("/api/clubs", requireAdmin, function (req, res) {
+
+    const sql = `
+        SELECT id, name, category, description, created_at
+        FROM clubs
+        WHERE created_by = ?
+        ORDER BY created_at DESC
+    `;
+
+    conn.query(sql, [req.session.userId], function (err, results) {
+
+        if (err) {
+            console.error("Error retrieving clubs:", err);
+
+            return res.status(500).json({
+                error: "Could not retrieve clubs"
+            });
+        }
+
+        res.json(results);
+    });
+});
+
+
+// UPDATE CLUB - Admin only
+app.put("/api/clubs/:id", requireAdmin, function (req, res) {
+
+    const clubId = req.params.id;
+    const { name, category, description } = req.body;
+
+    // Validate club details
+    if (
+        typeof name !== "string" ||
+        typeof category !== "string" ||
+        typeof description !== "string" ||
+        !name.trim() ||
+        !category.trim() ||
+        !description.trim() ||
+        name.trim().length > 150
+    ) {
+        return res.status(400).json({
+            error: "Please enter valid club details"
+        });
+    }
+
+    const sql = `
+        UPDATE clubs
+        SET name = ?, category = ?, description = ?
+        WHERE id = ? AND created_by = ?
+    `;
+
+    conn.query(
+        sql,
+        [
+            name.trim(),
+            category.trim(),
+            description.trim(),
+            clubId,
+            req.session.userId
+        ],
+        function (err, result) {
+
+            if (err) {
+                console.error("Error updating club:", err);
+
+                return res.status(500).json({
+                    error: "Could not update club"
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    error: "Club not found or access denied"
+                });
+            }
+
+            res.json({
+                message: "Club updated successfully!"
+            });
+        }
+    );
+});
+
 app.listen(3000, function () {
     console.log("Server running at http://localhost:3000");
 });
+
+

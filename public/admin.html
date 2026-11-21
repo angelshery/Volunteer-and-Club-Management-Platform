@@ -9,40 +9,20 @@
 <body class="dashboard-page">
 
 <div class="app-layout">
-
     <!-- Sidebar -->
     <aside class="sidebar">
-        <a href="/admin" class="sidebar-logo">
-            ❤️ Volunteer Hub
-        </a>
-
+        <a href="/admin" class="sidebar-logo">Cluviora</a>
         <p class="sidebar-label">ADMIN MENU</p>
-
         <nav class="sidebar-nav">
-            <a href="#overview" class="selected">
-                🏠 Overview
-            </a>
-
-            <a href="#manageClubs">
-                👥 Manage Clubs
-            </a>
-
-            <a href="#manageEvents">
-                📅 Manage Opportunities
-            </a>
-
-            <a href="#attendance">
-                ✅ Attendance & Hours
-            </a>
-
-            <a href="#statistics">
-                📊 Statistics
-            </a>
+            <ul>
+                <li><a href="#overview" class="selected">Overview</a></li>
+                <li><a href="#manageClubs">Manage Clubs</a></li>
+                <li><a href="#manageEvents">Manage Opportunities</a></li>
+                <li><a href="#attendance">Attendance & Hours</a></li>
+                <li><a href="#statistics">Statistics</a></li>
+                <li style="float: right;"><a href="/logout">Logout</a></li>
+            </ul>
         </nav>
-
-        <a href="/logout" class="sidebar-logout">
-            ↪ Logout
-        </a>
     </aside>
 
     <!-- Main Content -->
@@ -109,16 +89,61 @@
         <section id="manageClubs" class="dashboard-section">
             <div class="section-heading">
                 <h2>Manage Clubs</h2>
-                <button type="button" class="dashboard-btn"
-                        id="addClubBtn">
-                    + Add Club
-                </button>
+                <button type="button" class="dashboard-btn" id="addClubBtn">+ Add Club</button>
+            </div>
+                <!-- Add Club Form -->
+    <div id="addClubFormContainer"
+         class="profile-card"
+         hidden>
+
+        <h3 id="clubFormTitle">Create a New Club</h3>
+
+        <form id="addClubForm">
+
+            <div class="form-group">
+                <label for="clubName">Club Name</label>
+                <input type="text"
+                       id="clubName"
+                       maxlength="150"
+                       required>
             </div>
 
+            <div class="form-group">
+                <label for="clubCategory">Category</label>
+
+                <select id="clubCategory" required>
+                    <option value="">Select Category</option>
+                    <option value="Technology">Technology</option>
+                    <option value="Education">Education</option>
+                    <option value="Environment">Environment</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Community Service">Community Service</option>
+                    <option value="Arts & Culture">Arts & Culture</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="clubDescription">Description</label>
+
+                <textarea id="clubDescription"
+                          rows="4"
+                          placeholder="Describe the purpose of this club"
+                          required></textarea>
+            </div>
+
+            <div class="club-form-actions">
+                <button type="submit" class="dashboard-btn" id="saveClubBtn">Save Club</button>
+                <button type="button" class="cancel-btn" id="cancelClubBtn">Cancel</button>
+            </div>
+
+        </form>
+    </div>
+
+    <p id="clubMessage" role="status"></p>
             <div class="content-panel">
-                <p>
-                    Create, edit, and manage student clubs.
-                </p>
+                <p>Create, edit, and manage student clubs.</p>
 
                 <div id="clubsList">
                     <p class="empty-message">

@@ -13,10 +13,10 @@ body {
     padding: 20px;
 }
 
-.logo h1 {
+.logo h1{
     text-align: center;
     font-size: 32px;
-    margin-bottom: 8px;
+    margin-top: 8px;
 }
 /* Login/Register card */
 .auth-card {
@@ -42,4 +42,25 @@ body {
     font-weight: bold;
     cursor: pointer;
     margin-top: 5px;
+}
+
+ul {
+  list-style-type: none;
+  margin: 0;
+  padding: 0;
+  background-color: #333333;
+  display: flex;
+  justify-content: center;
+}
+ul li a {
+  display: block;
+  color: white;
+  padding: 14px 16px;
+  text-decoration: none;
+}
+
+footer{
+    position: fixed;
+    text-align: center;
+    bottom: 0;
 }
