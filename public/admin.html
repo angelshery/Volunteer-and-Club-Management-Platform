@@ -158,23 +158,63 @@
         <section id="manageEvents" class="dashboard-section">
             <div class="section-heading">
                 <h2>Manage Volunteer Opportunities</h2>
-                <button type="button" class="dashboard-btn"
-                        id="addOpportunityBtn">
-                    + Add Opportunity
-                </button>
+                <button type="button" class="dashboard-btn" id="addOpportunityBtn">+ Add Opportunity</button>
+            </div>
+
+            <div id="addOpportunityFormContainer" class="profile-card" hidden>
+
+                <h3 id="opportunityFormTitle">Create a Volunteer Opportunity</h3>
+
+                <form id="addOpportunityForm">
+
+                    <label for="opportunityTitle">Opportunity Title</label>
+                    <input type="text" id="opportunityTitle" required>
+
+                    <label for="opportunityClub">Select Club</label>
+                    <select id="opportunityClub" required>
+                        <option value="">Select a club</option>
+                    </select>
+
+                    <label for="opportunityDescription">Description</label>
+                    <textarea id="opportunityDescription" required></textarea>
+
+                    <label for="opportunityLocation">Location</label>
+                    <input type="text" id="opportunityLocation" required>
+
+                    <label for="opportunityDate">Event Date and Time</label>
+                    <input type="datetime-local" id="opportunityDate" required>
+
+                    <label for="opportunityHours">Volunteer Hours</label>
+                    <input type="number" id="opportunityHours" min="0.5" step="0.5" required>
+
+                    <label for="opportunitySpots">Available Spots</label>
+                    <input type="number" id="opportunitySpots" min="1" step="1" required>
+
+                    <label for="opportunityTags">Tags (comma-separated)</label>
+                    <input type="text" id="opportunityTags"
+                        placeholder="Environment, Outdoors, Community">
+
+                    <div class="club-form-actions">
+                        <button type="submit" class="dashboard-btn" id="saveOpportunityBtn">
+                            Save Opportunity
+                        </button>
+
+                        <button type="button" class="cancel-btn"
+                                id="cancelOpportunityBtn">
+                            Cancel
+                        </button>
+                    </div>
+
+                </form>
+
+                <p id="opportunityMessage"></p>
+
             </div>
 
             <div class="content-panel">
-                <p>
-                    Create and manage volunteer events
-                    for student clubs.
-                </p>
-
+                <p>Create and manage volunteer events for student clubs.</p>
                 <div id="opportunitiesList">
-                    <p class="empty-message">
-                        Opportunities will appear here
-                        after connecting the database.
-                    </p>
+                    <p class="empty-message">Opportunities will appear here after connecting the database.</p>
                 </div>
             </div>
         </section>

@@ -452,6 +452,397 @@ app.put("/api/clubs/:id", requireAdmin, function (req, res) {
     );
 });
 
+
+// DELETE CLUB - Admin only
+app.delete("/api/clubs/:id", requireAdmin, function (req, res) {
+
+    const clubId = req.params.id;
+
+    // First, check whether this club belongs to the admin
+    const checkSql = `
+        SELECT id FROM clubs
+        WHERE id = ? AND created_by = ?
+    `;
+
+    conn.query(
+        checkSql,
+        [clubId, req.session.userId],
+        function (err, results) {
+
+            if (err) {
+                console.error("Error checking club:", err);
+                return res.status(500).json({
+                    error: "Could not verify club ownership"
+                });
+            }
+
+            if (results.length === 0) {
+                return res.status(404).json({
+                    error: "Club not found or access denied"
+                });
+            }
+
+            // Delete the club
+            const deleteSql = "DELETE FROM clubs WHERE id = ? AND created_by = ?";
+
+            conn.query(
+                deleteSql,
+                [clubId, req.session.userId],
+                function (err, result) {
+
+                    if (err) {
+                        console.error("Error deleting club:", err);
+
+                        if (err.code === "ER_ROW_IS_REFERENCED_2") {
+                            return res.status(409).json({
+                                error: "This club has related members or opportunities and cannot be deleted yet."
+                            });
+                        }
+
+                        return res.status(500).json({
+                            error: "Could not delete club"
+                        });
+                    }
+
+                    if (result.affectedRows === 0) {
+                        return res.status(404).json({
+                            error: "Club not found"
+                        });
+                    }
+
+                    res.json({
+                        message: "Club deleted successfully!"
+                    });
+                }
+            );
+        }
+    );
+});
+
+
+// ===== CREATE VOLUNTEER OPPORTUNITY =====
+
+app.post("/api/opportunities", requireAdmin, function (req, res) {
+
+    const {club_id,title,description,location,event_date,hours,spots,tags} = req.body;
+
+    // Validate opportunity details
+    if (
+        !Number.isInteger(Number(club_id)) ||
+        Number(club_id) <= 0 ||
+        typeof title !== "string" || !title.trim() ||
+        typeof description !== "string" || !description.trim() ||
+        typeof location !== "string" || !location.trim() ||
+        !event_date ||
+        !Number.isFinite(Number(hours)) ||
+        Number(hours) <= 0 ||
+        !Number.isInteger(Number(spots)) ||
+        Number(spots) <= 0
+    ) {
+        return res.status(400).json({
+            error: "Please enter valid opportunity details"
+        });
+    }
+
+    // Verify that the selected club belongs to the admin
+    const checkSql = `
+        SELECT id FROM clubs
+        WHERE id = ? AND created_by = ?
+    `;
+
+    conn.query(
+        checkSql,
+        [club_id, req.session.userId],
+        function (err, results) {
+
+            if (err) {
+                console.error(err);
+
+                return res.status(500).json({
+                    error: "Could not verify club"
+                });
+            }
+
+            if (results.length === 0) {
+                return res.status(403).json({
+                    error: "You do not have access to this club"
+                });
+            }
+
+            // Insert opportunity into MySQL
+            const sql = `
+                INSERT INTO opportunities
+                (club_id, title, description, location,
+                event_date, hours, spots, tags)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `;
+
+            conn.query(
+                sql,
+                [
+                    club_id,
+                    title.trim(),
+                    description.trim(),
+                    location.trim(),
+                    event_date,
+                    Number(hours),
+                    Number(spots),
+                    tags || ""
+                ],
+                function (err, result) {
+
+                    if (err) {
+                        console.error("Error creating opportunity:", err);
+
+                        return res.status(500).json({
+                            error: "Could not create opportunity"
+                        });
+                    }
+
+                    res.status(201).json({
+                        message: "Opportunity created successfully!",
+                        opportunityId: result.insertId
+                    });
+                }
+            );
+        }
+    );
+});
+
+
+// ===== READ VOLUNTEER OPPORTUNITIES =====
+
+app.get("/api/opportunities", requireAdmin, function (req, res) {
+
+    const sql = `
+        SELECT 
+            o.id,
+            o.club_id,
+            o.title,
+            o.description,
+            o.location,
+            o.event_date,
+            o.hours,
+            o.spots,
+            o.tags,
+            c.name AS club_name
+        FROM opportunities o
+        INNER JOIN clubs c ON o.club_id = c.id
+        WHERE c.created_by = ?
+        ORDER BY o.event_date ASC
+    `;
+
+    conn.query(sql, [req.session.userId], function (err, results) {
+
+        if (err) {
+            console.error("Error retrieving opportunities:", err);
+
+            return res.status(500).json({
+                error: "Could not retrieve opportunities"
+            });
+        }
+
+        res.json(results);
+    });
+});
+
+
+// ===== UPDATE VOLUNTEER OPPORTUNITY =====
+
+app.put("/api/opportunities/:id", requireAdmin, function (req, res) {
+
+    const opportunityId = req.params.id;
+
+    const {
+        club_id,
+        title,
+        description,
+        location,
+        event_date,
+        hours,
+        spots,
+        tags
+    } = req.body;
+
+    // Validate opportunity details
+    if (
+        !Number.isInteger(Number(club_id)) ||
+        Number(club_id) <= 0 ||
+        typeof title !== "string" || !title.trim() ||
+        typeof description !== "string" || !description.trim() ||
+        typeof location !== "string" || !location.trim() ||
+        !event_date ||
+        !Number.isFinite(Number(hours)) ||
+        Number(hours) <= 0 ||
+        !Number.isInteger(Number(spots)) ||
+        Number(spots) <= 0
+    ) {
+        return res.status(400).json({
+            error: "Please enter valid opportunity details"
+        });
+    }
+
+    // Update opportunity only if both clubs belong to the admin
+    const sql = `
+        UPDATE opportunities o
+        INNER JOIN clubs c ON o.club_id = c.id
+        INNER JOIN clubs newClub ON newClub.id = ?
+        SET
+            o.club_id = newClub.id,
+            o.title = ?,
+            o.description = ?,
+            o.location = ?,
+            o.event_date = ?,
+            o.hours = ?,
+            o.spots = ?,
+            o.tags = ?
+        WHERE o.id = ?
+        AND c.created_by = ?
+        AND newClub.created_by = ?
+    `;
+
+    conn.query(
+        sql,
+        [
+            club_id,
+            title.trim(),
+            description.trim(),
+            location.trim(),
+            event_date,
+            Number(hours),
+            Number(spots),
+            tags || "",
+            opportunityId,
+            req.session.userId,
+            req.session.userId
+        ],
+        function (err, result) {
+
+            if (err) {
+                console.error("Error updating opportunity:", err);
+
+                return res.status(500).json({
+                    error: "Could not update opportunity"
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    error: "Opportunity not found or access denied"
+                });
+            }
+
+            res.json({
+                message: "Opportunity updated successfully!"
+            });
+        }
+    );
+});
+
+
+// ===== DELETE VOLUNTEER OPPORTUNITY =====
+
+app.delete("/api/opportunities/:id", requireAdmin, function (req, res) {
+
+    const opportunityId = req.params.id;
+
+    // Delete only opportunities belonging to the admin
+    const sql = `
+        DELETE o FROM opportunities o
+        INNER JOIN clubs c ON o.club_id = c.id
+        WHERE o.id = ?
+        AND c.created_by = ?
+    `;
+
+    conn.query(
+        sql,
+        [opportunityId, req.session.userId],
+        function (err, result) {
+
+            if (err) {
+
+                console.error("Error deleting opportunity:", err);
+
+                if (err.code === "ER_ROW_IS_REFERENCED_2") {
+                    return res.status(409).json({
+                        error: "This opportunity has student registrations and cannot be deleted."
+                    });
+                }
+
+                return res.status(500).json({
+                    error: "Could not delete opportunity"
+                });
+            }
+
+            if (result.affectedRows === 0) {
+                return res.status(404).json({
+                    error: "Opportunity not found or access denied"
+                });
+            }
+
+            res.json({
+                message: "Opportunity deleted successfully!"
+            });
+        }
+    );
+});
+
+
+// ===== BROWSE CLUBS - STUDENT =====
+
+app.get("/api/student/clubs", requireStudentApi, function (req, res) {
+
+    const sql = `
+        SELECT
+            c.id,
+            c.name,
+            c.category,
+            c.description,
+
+            (
+                SELECT COUNT(*)
+                FROM club_members cm
+                WHERE cm.club_id = c.id
+            ) AS member_count,
+
+            EXISTS (
+                SELECT 1
+                FROM club_members cm
+                WHERE cm.club_id = c.id
+                AND cm.user_id = ?
+            ) AS is_member
+
+        FROM clubs c
+        ORDER BY c.name ASC
+    `;
+
+    conn.query(sql, [req.session.userId], function (err, results) {
+
+        if (err) {
+
+            console.error("Error retrieving student clubs:", err);
+
+            return res.status(500).json({
+                error: "Could not retrieve clubs"
+            });
+        }
+
+        res.json(results);
+    });
+});
+
+// ===== STUDENT EXPLORE CLUBS PAGE =====
+
+app.get(["/clubs", "/clubs.html"], requireLogin, function (req, res) {
+
+    if (req.session.role !== "student") {
+        return res.redirect("/admin");
+    }
+
+    res.sendFile(
+        __dirname + "/public/clubs.html"
+    );
+});
 app.listen(3000, function () {
     console.log("Server running at http://localhost:3000");
 });
