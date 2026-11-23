@@ -664,3 +664,445 @@ async function deleteOpportunity(opportunityId, opportunityTitle) {
         alert(error.message);
     }
 }
+
+
+// ===== ADMIN ATTENDANCE MANAGEMENT =====
+
+// Get HTML elements
+const attendanceTableBody = document.getElementById("attendanceTableBody");
+const attendanceSearch = document.getElementById("attendanceSearch");
+const attendanceStatusFilter = document.getElementById("attendanceStatusFilter");
+const attendanceResultsCount = document.getElementById("attendanceResultsCount");
+const attendanceMessage = document.getElementById("attendanceMessage");
+
+// ===== ATTENDANCE FORM ELEMENTS =====
+
+const attendanceFormContainer = document.getElementById("attendanceFormContainer");
+const attendanceForm = document.getElementById("attendanceForm");
+
+const attendanceRegistrationId = document.getElementById("attendanceRegistrationId");
+const attendanceStudentInfo = document.getElementById("attendanceStudentInfo");
+
+const attendanceStatus = document.getElementById("attendanceStatus");
+const attendanceHours = document.getElementById("attendanceHours");
+const attendanceVerified = document.getElementById("attendanceVerified");
+const attendanceNotes = document.getElementById("attendanceNotes");
+
+const cancelAttendanceEdit = document.getElementById("cancelAttendanceEdit");
+
+
+// Store registrations retrieved from MySQL
+let allRegistrations = [];
+
+// ===== FETCH STUDENT REGISTRATIONS =====
+
+async function loadAdminRegistrations() {
+
+    try {
+
+        const response = await fetch("/api/admin/registrations");
+
+        if (!response.ok || response.redirected) {
+            throw new Error("Unable to retrieve registrations");
+        }
+
+        allRegistrations = await response.json();
+
+        // Display the registrations
+        filterAdminRegistrations();
+
+    } catch (error) {
+
+        console.error(error);
+
+        attendanceMessage.textContent =
+            "Unable to load student registrations.";
+
+        attendanceMessage.style.color = "red";
+    }
+}
+
+// ===== UPDATE ATTENDANCE FORM FIELDS =====
+
+function updateAttendanceFields() {
+
+    const isAttended = attendanceStatus.value === "attended";
+
+    if (isAttended) {
+
+        // Enable volunteer hours and verification
+        attendanceHours.disabled = false;
+        attendanceVerified.disabled = false;
+
+    } else {
+
+        // No volunteer hours for registered or absent students
+        attendanceHours.value = 0;
+        attendanceHours.disabled = true;
+
+        attendanceVerified.checked = false;
+        attendanceVerified.disabled = true;
+    }
+}
+
+
+// ===== OPEN ATTENDANCE MANAGEMENT FORM =====
+
+function openAttendanceForm(registration) {
+
+    // Store the selected registration ID
+    attendanceRegistrationId.value = registration.registration_id;
+
+    // Display student and event information
+    const studentName =
+        `${registration.fname || ""} ${registration.lname || ""}`.trim()
+        || registration.username;
+
+    attendanceStudentInfo.textContent =
+        `Student: ${studentName} | Event: ${registration.event_title}`;
+
+    // Fill in existing attendance details
+    attendanceStatus.value = registration.status;
+
+    attendanceHours.value = Number(registration.hours_claimed || 0);
+
+    attendanceVerified.checked =
+        Number(registration.verified) === 1;
+
+    attendanceNotes.value = registration.notes || "";
+
+    // Restrict hours and verification based on attendance status
+    updateAttendanceFields();
+
+    // Show the form
+    attendanceFormContainer.hidden = false;
+
+    // Scroll to the form
+    attendanceFormContainer.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+    });
+}
+
+// ===== DISPLAY REGISTRATIONS =====
+
+function displayAdminRegistrations(registrations) {
+
+    attendanceTableBody.innerHTML = "";
+
+    attendanceResultsCount.textContent =
+        `${registrations.length} ${
+            registrations.length === 1 ? "registration" : "registrations"
+        } found`;
+
+    if (registrations.length === 0) {
+
+        const row = document.createElement("tr");
+        const cell = document.createElement("td");
+
+        cell.colSpan = 7;
+        cell.textContent = "No registrations found.";
+        cell.style.textAlign = "center";
+
+        row.appendChild(cell);
+        attendanceTableBody.appendChild(row);
+
+        return;
+    }
+
+    registrations.forEach(function (registration) {
+
+        const row = document.createElement("tr");
+
+        // Student name
+        const studentCell = document.createElement("td");
+
+        studentCell.textContent =
+            `${registration.fname || ""} ${registration.lname || ""}`.trim()
+            || registration.username;
+
+        // Event and club name
+        const eventCell = document.createElement("td");
+
+        eventCell.textContent =
+            `${registration.event_title} (${registration.club_name})`;
+
+        // Event date
+        const dateCell = document.createElement("td");
+
+        dateCell.textContent =
+            new Date(registration.event_date).toLocaleString();
+
+        // Attendance status
+        const statusCell = document.createElement("td");
+
+        statusCell.textContent = registration.status;
+
+        // Recorded volunteer hours
+        const hoursCell = document.createElement("td");
+
+        hoursCell.textContent =
+            Number(registration.hours_claimed || 0);
+
+        // Verification status
+        const verificationCell = document.createElement("td");
+
+        verificationCell.textContent =
+            Number(registration.verified) === 1
+                ? "Verified"
+                : "Pending";
+
+        // Action button
+        const actionCell = document.createElement("td");
+
+        const editBtn = document.createElement("button");
+
+        editBtn.type = "button";
+        editBtn.className = "attendance-action-btn";
+        editBtn.textContent = "Manage";
+
+        editBtn.addEventListener("click", function () {
+    openAttendanceForm(registration);
+});
+
+        actionCell.appendChild(editBtn);
+
+        // Add all cells to the row
+        row.appendChild(studentCell);
+        row.appendChild(eventCell);
+        row.appendChild(dateCell);
+        row.appendChild(statusCell);
+        row.appendChild(hoursCell);
+        row.appendChild(verificationCell);
+        row.appendChild(actionCell);
+
+        attendanceTableBody.appendChild(row);
+    });
+}
+
+// ===== FILTER ADMIN REGISTRATIONS =====
+
+function filterAdminRegistrations() {
+
+    const searchText = attendanceSearch.value.toLowerCase().trim();
+
+    const selectedStatus = attendanceStatusFilter.value;
+
+    const filteredRegistrations = allRegistrations.filter(
+        function (registration) {
+
+            const searchableText = [
+                registration.fname,
+                registration.lname,
+                registration.username,
+                registration.email,
+                registration.event_title,
+                registration.club_name
+            ]
+            .filter(value => value != null)
+            .join(" ")
+            .toLowerCase();
+
+            const matchesSearch = searchableText.includes(searchText);
+
+            const matchesStatus =
+                selectedStatus === "All" ||
+                registration.status === selectedStatus;
+
+            return matchesSearch && matchesStatus;
+        }
+    );
+
+    displayAdminRegistrations(filteredRegistrations);
+}
+
+
+// ===== FILTER EVENT LISTENERS =====
+
+attendanceSearch.addEventListener(
+    "input",
+    filterAdminRegistrations
+);
+
+attendanceStatusFilter.addEventListener(
+    "change",
+    filterAdminRegistrations
+);
+
+
+// ===== INITIAL LOAD =====
+
+loadAdminRegistrations();
+// Run whenever the administrator changes attendance status
+attendanceStatus.addEventListener("change", updateAttendanceFields);
+
+// ===== CLOSE ATTENDANCE FORM =====
+
+cancelAttendanceEdit.addEventListener("click", function () {
+
+    attendanceFormContainer.hidden = true;
+
+    attendanceForm.reset();
+});
+
+// ===== SAVE STUDENT ATTENDANCE =====
+
+attendanceForm.addEventListener("submit", async function (event) {
+
+    // Prevent the page from refreshing
+    event.preventDefault();
+
+    // Get the selected registration ID
+    const registrationId = attendanceRegistrationId.value;
+
+    // Get values entered by the administrator
+    const selectedStatus = attendanceStatus.value;
+
+    const attendanceData = {
+        status: selectedStatus,
+
+        hours_claimed: selectedStatus === "attended"
+            ? Number(attendanceHours.value)
+            : 0,
+
+        verified: selectedStatus === "attended"
+            ? attendanceVerified.checked
+            : false,
+
+        notes: attendanceNotes.value.trim()
+    };
+
+    // Validate hours before sending
+    if (
+        selectedStatus === "attended" &&
+        (
+            attendanceHours.value.trim() === "" ||
+            !Number.isFinite(attendanceData.hours_claimed) ||
+            attendanceData.hours_claimed < 0
+        )
+    ) {
+        attendanceMessage.textContent =
+            "Please enter valid volunteer hours.";
+
+        attendanceMessage.style.color = "red";
+        return;
+    }
+
+    // Get the Save Attendance button
+    const saveBtn = attendanceForm.querySelector(
+        'button[type="submit"]'
+    );
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving...";
+
+    try {
+
+        // Send attendance details to Express backend
+        const response = await fetch(
+            `/api/admin/registrations/${registrationId}`,
+            {
+                method: "PUT",
+
+                headers: {
+                    "Content-Type": "application/json"
+                },
+
+                body: JSON.stringify(attendanceData)
+            }
+        );
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                result.error || "Unable to update attendance"
+            );
+        }
+
+        // Display success message
+        attendanceMessage.textContent = result.message;
+        attendanceMessage.style.color = "green";
+
+        // Close and reset the form
+        attendanceFormContainer.hidden = true;
+        attendanceForm.reset();
+
+        // Refresh the attendance table
+        await loadAdminRegistrations();
+
+    } catch (error) {
+
+        console.error("Attendance update error:", error);
+
+        attendanceMessage.textContent = error.message;
+        attendanceMessage.style.color = "red";
+
+    } finally {
+
+        // Restore the Save button
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Attendance";
+    }
+});
+
+// ===== ADMIN DASHBOARD STATISTICS =====
+
+const statTotalClubs = document.getElementById("statTotalClubs");
+const statTotalOpportunities = document.getElementById("statTotalOpportunities");
+const statTotalMembers = document.getElementById("statTotalMembers");
+const statTotalRegistrations = document.getElementById("statTotalRegistrations");
+const statTotalAttended = document.getElementById("statTotalAttended");
+const statVerifiedHours = document.getElementById("statVerifiedHours");
+
+const adminStatsMessage = document.getElementById("adminStatsMessage");
+
+
+// ===== FETCH ADMIN STATISTICS =====
+
+async function loadAdminStatistics() {
+
+    try {
+
+        const response = await fetch("/api/admin/statistics");
+
+        if (!response.ok || response.redirected) {
+            throw new Error("Unable to retrieve admin statistics");
+        }
+
+        const stats = await response.json();
+
+        // Update statistics cards
+        statTotalClubs.textContent = stats.total_clubs;
+
+        statTotalOpportunities.textContent =
+            stats.total_opportunities;
+
+        statTotalMembers.textContent = stats.total_members;
+
+        statTotalRegistrations.textContent =
+            stats.total_registrations;
+
+        statTotalAttended.textContent =
+            stats.total_attended;
+
+        statVerifiedHours.textContent =
+            Number(stats.verified_hours || 0);
+
+        adminStatsMessage.textContent = "";
+
+    } catch (error) {
+
+        console.error("Admin statistics error:", error);
+
+        adminStatsMessage.textContent =
+            "Unable to load dashboard statistics.";
+
+        adminStatsMessage.style.color = "red";
+    }
+}
+
+
+// ===== INITIAL STATISTICS LOAD =====
+
+loadAdminStatistics();

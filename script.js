@@ -799,6 +799,336 @@ app.delete("/api/opportunities/:id", requireAdmin, function (req, res) {
 });
 
 
+// ===== ADMIN: VIEW EVENT REGISTRATIONS =====
+
+app.get("/api/admin/registrations",requireAdmin,function (req, res) {
+
+        const adminId = req.session.userId;
+
+        const sql = `
+            SELECT
+                r.id AS registration_id,
+                r.opportunity_id,
+                r.user_id,
+                r.status,
+                r.hours_claimed,
+                r.verified,
+                r.notes,
+                r.registered_at,
+
+                u.username,
+                u.fname,
+                u.lname,
+                u.email,
+
+                o.title AS event_title,
+                o.event_date,
+                o.hours AS event_hours,
+
+                c.name AS club_name
+
+            FROM registrations r
+
+            INNER JOIN users u
+                ON r.user_id = u.id
+
+            INNER JOIN opportunities o
+                ON r.opportunity_id = o.id
+
+            INNER JOIN clubs c
+                ON o.club_id = c.id
+
+            WHERE c.created_by = ?
+
+            ORDER BY o.event_date DESC, u.fname ASC
+        `;
+
+        conn.query(sql, [adminId], function (err, results) {
+
+            if (err) {
+
+                console.error(
+                    "Error retrieving admin registrations:",
+                    err
+                );
+
+                return res.status(500).json({
+                    error: "Could not retrieve event registrations"
+                });
+            }
+
+            res.json(results);
+        });
+    }
+);
+
+// ===== ADMIN: UPDATE STUDENT ATTENDANCE =====
+
+app.put(
+    "/api/admin/registrations/:id",
+    requireAdmin,
+    function (req, res) {
+
+        const registrationId = Number(req.params.id);
+        const adminId = req.session.userId;
+
+        const { status, hours_claimed, verified, notes } = req.body;
+
+        // Validate registration ID
+        if (!Number.isSafeInteger(registrationId) || registrationId <= 0) {
+            return res.status(400).json({
+                error: "Invalid registration ID"
+            });
+        }
+
+        // Validate attendance status
+        if (!["registered", "attended", "absent"].includes(status)) {
+            return res.status(400).json({
+                error: "Invalid attendance status"
+            });
+        }
+
+        // Validate hours
+        const hours = Number(hours_claimed);
+
+        if (
+            hours_claimed === null ||
+            hours_claimed === "" ||
+            typeof hours_claimed === "boolean" ||
+            !Number.isFinite(hours) ||
+            hours < 0
+        ) {
+            return res.status(400).json({
+                error: "Volunteer hours must be a valid non-negative number"
+            });
+        }
+
+        // Validate verification value
+        if (verified !== true && verified !== false) {
+            return res.status(400).json({
+                error: "Verification must be true or false"
+            });
+        }
+
+        // Validate notes
+        if (typeof notes !== "string" || notes.length > 1000) {
+            return res.status(400).json({
+                error: "Notes must be text under 1000 characters"
+            });
+        }
+
+        // Hours can only be recorded for attended events
+        if (status !== "attended" && (hours !== 0 || verified)) {
+            return res.status(400).json({
+                error: "Only attended events can have hours or verification"
+            });
+        }
+
+        // Check registration and admin ownership
+        const checkSql = `
+            SELECT
+                r.id,
+                o.event_date,
+                o.hours AS event_hours
+
+            FROM registrations r
+
+            INNER JOIN opportunities o
+                ON r.opportunity_id = o.id
+
+            INNER JOIN clubs c
+                ON o.club_id = c.id
+
+            WHERE r.id = ?
+              AND c.created_by = ?
+        `;
+
+        conn.query(
+            checkSql,
+            [registrationId, adminId],
+            function (err, results) {
+
+                if (err) {
+                    console.error("Attendance lookup error:", err);
+
+                    return res.status(500).json({
+                        error: "Could not check registration"
+                    });
+                }
+
+                if (results.length === 0) {
+                    return res.status(404).json({
+                        error: "Registration not found or access denied"
+                    });
+                }
+
+                const registration = results[0];
+
+                // Prevent attendance updates before an event starts
+                if (new Date(registration.event_date) > new Date()) {
+                    return res.status(400).json({
+                        error: "Attendance cannot be recorded before the event starts"
+                    });
+                }
+
+                // Prevent recording more than the scheduled hours
+                if (hours > Number(registration.event_hours)) {
+                    return res.status(400).json({
+                        error: "Recorded hours cannot exceed the event hours"
+                    });
+                }
+
+                // Update attendance, hours and verification
+                const updateSql = `
+                    UPDATE registrations r
+
+                    INNER JOIN opportunities o
+                        ON r.opportunity_id = o.id
+
+                    INNER JOIN clubs c
+                        ON o.club_id = c.id
+
+                    SET
+                        r.status = ?,
+                        r.hours_claimed = ?,
+                        r.verified = ?,
+                        r.notes = ?
+
+                    WHERE r.id = ?
+                      AND c.created_by = ?
+                      AND o.event_date <= NOW()
+                `;
+
+                conn.query(
+                    updateSql,
+                    [
+                        status,
+                        status === "attended" ? hours : 0,
+                        verified ? 1 : 0,
+                        notes.trim(),
+                        registrationId,
+                        adminId
+                    ],
+                    function (updateErr, result) {
+
+                        if (updateErr) {
+                            console.error("Attendance update error:", updateErr);
+
+                            return res.status(500).json({
+                                error: "Could not update attendance"
+                            });
+                        }
+
+                        if (result.affectedRows === 0) {
+                            return res.status(409).json({
+                                error: "Registration could not be updated"
+                            });
+                        }
+
+                        res.json({
+                            message: "Attendance updated successfully!"
+                        });
+                    }
+                );
+            }
+        );
+    }
+);
+
+// ===== ADMIN DASHBOARD STATISTICS =====
+
+app.get("/api/admin/statistics", requireAdmin, function (req, res) {
+
+    const adminId = req.session.userId;
+
+    const sql = `
+        SELECT
+
+            -- Total clubs created by this admin
+            (
+                SELECT COUNT(*)
+                FROM clubs
+                WHERE created_by = ?
+            ) AS total_clubs,
+
+            -- Total volunteer opportunities
+            (
+                SELECT COUNT(*)
+                FROM opportunities o
+                INNER JOIN clubs c ON o.club_id = c.id
+                WHERE c.created_by = ?
+            ) AS total_opportunities,
+
+            -- Unique students who joined this admin's clubs
+            (
+                SELECT COUNT(DISTINCT cm.user_id)
+                FROM club_members cm
+                INNER JOIN clubs c ON cm.club_id = c.id
+                WHERE c.created_by = ?
+            ) AS total_members,
+
+            -- Total event registrations
+            (
+                SELECT COUNT(*)
+                FROM registrations r
+                INNER JOIN opportunities o
+                    ON r.opportunity_id = o.id
+                INNER JOIN clubs c
+                    ON o.club_id = c.id
+                WHERE c.created_by = ?
+            ) AS total_registrations,
+
+            -- Total attended registrations
+            (
+                SELECT COUNT(*)
+                FROM registrations r
+                INNER JOIN opportunities o
+                    ON r.opportunity_id = o.id
+                INNER JOIN clubs c
+                    ON o.club_id = c.id
+                WHERE c.created_by = ?
+                  AND r.status = 'attended'
+            ) AS total_attended,
+
+            -- Total verified volunteer hours
+            (
+                SELECT COALESCE(SUM(r.hours_claimed), 0)
+                FROM registrations r
+                INNER JOIN opportunities o
+                    ON r.opportunity_id = o.id
+                INNER JOIN clubs c
+                    ON o.club_id = c.id
+                WHERE c.created_by = ?
+                  AND r.status = 'attended'
+                  AND r.verified = 1
+            ) AS verified_hours
+    `;
+
+    conn.query(
+        sql,
+        [
+            adminId,
+            adminId,
+            adminId,
+            adminId,
+            adminId,
+            adminId
+        ],
+        function (err, results) {
+
+            if (err) {
+                console.error("Admin statistics error:", err);
+
+                return res.status(500).json({
+                    error: "Could not retrieve dashboard statistics"
+                });
+            }
+
+            res.json(results[0]);
+        }
+    );
+});
+
 // ===== BROWSE CLUBS - STUDENT =====
 
 app.get("/api/student/clubs", requireStudentApi, function (req, res) {
