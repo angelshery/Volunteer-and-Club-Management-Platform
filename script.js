@@ -83,7 +83,18 @@ app.use((req, res, next) => {
 
     next();
 });
+// ===== STUDENT PROFILE PAGE =====
 
+app.get(["/profile", "/profile.html"], requireLogin, function (req, res) {
+
+    // Only students can access the profile page
+    if (req.session.role !== "student") {
+        return res.redirect("/admin");
+    }
+
+    res.sendFile(__dirname + "/public/profile.html");
+
+});
 // Serve public HTML, CSS and JavaScript files
 app.use(express.static(path.join(__dirname, "public")));
 
@@ -831,6 +842,116 @@ app.get("/api/student/clubs", requireStudentApi, function (req, res) {
     });
 });
 
+// ===== JOIN CLUB - STUDENT =====
+
+app.post("/api/student/clubs/:id/join", requireStudentApi, function (req, res) {
+
+    const clubId = Number(req.params.id);
+    const userId = req.session.userId;
+
+    // Validate club ID
+    if (!Number.isSafeInteger(clubId) || clubId <= 0) {
+        return res.status(400).json({
+            error: "Invalid club ID"
+        });
+    }
+
+    // Check whether the club exists
+    const checkSql = "SELECT id FROM clubs WHERE id = ?";
+
+    conn.query(checkSql, [clubId], function (err, results) {
+
+        if (err) {
+            console.error("Error checking club:", err);
+
+            return res.status(500).json({
+                error: "Could not verify club"
+            });
+        }
+
+        if (results.length === 0) {
+            return res.status(404).json({
+                error: "Club not found"
+            });
+        }
+
+        // Add student to club_members table
+        const insertSql = `
+            INSERT INTO club_members (club_id, user_id)
+            VALUES (?, ?)
+        `;
+
+        conn.query(insertSql, [clubId, userId], function (err, result) {
+
+            if (err) {
+
+                // Student is already a member
+                if (err.code === "ER_DUP_ENTRY") {
+                    return res.status(409).json({
+                        error: "You have already joined this club"
+                    });
+                }
+
+                console.error("Error joining club:", err);
+
+                return res.status(500).json({
+                    error: "Could not join club"
+                });
+            }
+
+            res.status(201).json({
+                message: "You have successfully joined the club!"
+            });
+        });
+    });
+});
+
+// ===== LEAVE CLUB - STUDENT =====
+
+app.delete("/api/student/clubs/:id/leave", requireStudentApi, function (req, res) {
+
+    const clubId = Number(req.params.id);
+    const userId = req.session.userId;
+
+    // Validate club ID
+    if (!Number.isSafeInteger(clubId) || clubId <= 0) {
+        return res.status(400).json({
+            error: "Invalid club ID"
+        });
+    }
+
+    // Remove student membership from club_members table
+    const sql = `
+        DELETE FROM club_members
+        WHERE club_id = ?
+        AND user_id = ?
+    `;
+
+    conn.query(sql, [clubId, userId], function (err, result) {
+
+        if (err) {
+
+            console.error("Error leaving club:", err);
+
+            return res.status(500).json({
+                error: "Could not leave club"
+            });
+        }
+
+        // Check if student was actually a member
+        if (result.affectedRows === 0) {
+            return res.status(404).json({
+                error: "You are not a member of this club"
+            });
+        }
+
+        res.json({
+            message: "You have successfully left the club!"
+        });
+    });
+});
+
+
 // ===== STUDENT EXPLORE CLUBS PAGE =====
 
 app.get(["/clubs", "/clubs.html"], requireLogin, function (req, res) {
@@ -843,6 +964,370 @@ app.get(["/clubs", "/clubs.html"], requireLogin, function (req, res) {
         __dirname + "/public/clubs.html"
     );
 });
+
+// ===== STUDENT VOLUNTEER OPPORTUNITIES PAGE =====
+
+app.get(
+    ["/opportunities", "/opportunities.html"],
+    requireLogin,
+    function (req, res) {
+
+        // Only students can access this page
+        if (req.session.role !== "student") {
+            return res.redirect("/admin");
+        }
+
+        res.sendFile(
+            __dirname + "/public/opportunities.html"
+        );
+    }
+);
+
+// ===== STUDENT MY EVENTS PAGE =====
+
+app.get(
+    ["/my-events", "/my-events.html"],
+    requireLogin,
+    function (req, res) {
+
+        // Only students can access this page
+        if (req.session.role !== "student") {
+            return res.redirect("/admin");
+        }
+
+        res.sendFile(
+            __dirname + "/public/my-events.html"
+        );
+    }
+);
+
+
+// ===== BROWSE VOLUNTEER OPPORTUNITIES - STUDENT =====
+
+app.get("/api/student/opportunities", requireStudentApi, function (req, res) {
+
+    const sql = `
+        SELECT
+            o.id,
+            o.club_id,
+            o.title,
+            o.description,
+            o.location,
+            o.event_date,
+            o.hours,
+            o.spots,
+            o.tags,
+            c.name AS club_name,
+            c.category AS club_category,
+
+            (
+                SELECT COUNT(*)
+                FROM registrations r
+                WHERE r.opportunity_id = o.id
+            ) AS registered_count,
+
+            EXISTS (
+                SELECT 1
+                FROM registrations r
+                WHERE r.opportunity_id = o.id
+                AND r.user_id = ?
+            ) AS is_registered
+
+        FROM opportunities o
+
+        INNER JOIN clubs c
+        ON o.club_id = c.id
+
+        WHERE o.event_date >= NOW()
+
+        ORDER BY o.event_date ASC
+    `;
+
+    conn.query(sql, [req.session.userId], function (err, results) {
+
+        if (err) {
+
+            console.error("Error retrieving opportunities:", err);
+
+            return res.status(500).json({
+                error: "Could not retrieve volunteer opportunities"
+            });
+        }
+
+        res.json(results);
+    });
+});
+
+// ===== REGISTER FOR VOLUNTEER OPPORTUNITY =====
+
+app.post("/api/student/opportunities/:id/register",requireStudentApi, function (req, res) {
+
+        const opportunityId = Number(req.params.id);
+        const userId = req.session.userId;
+
+        // Validate opportunity ID
+        if (!Number.isSafeInteger(opportunityId) || opportunityId <= 0) {
+            return res.status(400).json({
+                error: "Invalid opportunity ID"
+            });
+        }
+
+        // Start database transaction
+        conn.beginTransaction(function (transactionError) {
+
+            if (transactionError) {
+                console.error(transactionError);
+
+                return res.status(500).json({
+                    error: "Could not start registration"
+                });
+            }
+
+            // Roll back changes if something goes wrong
+            function fail(status, message) {
+                conn.rollback(function () {
+                    res.status(status).json({ error: message });
+                });
+            }
+
+            // Lock opportunity row to protect available spots
+            const opportunitySql = `
+                SELECT id, spots, event_date,
+                       event_date > NOW() AS is_upcoming
+                FROM opportunities
+                WHERE id = ?
+                FOR UPDATE
+            `;
+
+            conn.query(
+                opportunitySql,
+                [opportunityId],
+                function (err, opportunities) {
+
+                    if (err) {
+                        console.error(err);
+                        return fail(500, "Could not check opportunity");
+                    }
+
+                    if (opportunities.length === 0) {
+                        return fail(404, "Opportunity not found");
+                    }
+
+                    if (!Number(opportunities[0].is_upcoming)) {
+                        return fail(400, "Registration is closed for this event");
+                    }
+
+                    // Check for duplicate registration
+                    const duplicateSql = `
+                        SELECT id
+                        FROM registrations
+                        WHERE opportunity_id = ?
+                        AND user_id = ?
+                    `;
+
+                    conn.query(
+                        duplicateSql,
+                        [opportunityId, userId],
+                        function (duplicateError, existing) {
+
+                            if (duplicateError) {
+                                console.error(duplicateError);
+                                return fail(500, "Could not check registration");
+                            }
+
+                            if (existing.length > 0) {
+                                return fail(409, "You are already registered for this event");
+                            }
+
+                            // Count registered students
+                            const countSql = `
+                                SELECT COUNT(*) AS registered_count
+                                FROM registrations
+                                WHERE opportunity_id = ?
+                            `;
+
+                            conn.query(
+                                countSql,
+                                [opportunityId],
+                                function (countError, counts) {
+
+                                    if (countError) {
+                                        console.error(countError);
+                                        return fail(500, "Could not check available spots");
+                                    }
+
+                                    const registeredCount =
+                                        Number(counts[0].registered_count);
+
+                                    const totalSpots =
+                                        Number(opportunities[0].spots);
+
+                                    // Prevent registration if event is full
+                                    if (registeredCount >= totalSpots) {
+                                        return fail(409, "This event is full");
+                                    }
+
+                                    // Insert registration
+                                    const insertSql = `
+                                        INSERT INTO registrations
+                                        (opportunity_id, user_id, status, verified)
+                                        VALUES (?, ?, 'registered', 0)
+                                    `;
+
+                                    conn.query(
+                                        insertSql,
+                                        [opportunityId, userId],
+                                        function (insertError) {
+
+                                            if (insertError) {
+
+                                                if (insertError.code === "ER_DUP_ENTRY") {
+                                                    return fail(409, "You are already registered");
+                                                }
+
+                                                console.error(insertError);
+                                                return fail(500, "Could not register for event");
+                                            }
+
+                                            // Save transaction
+                                            conn.commit(function (commitError) {
+
+                                                if (commitError) {
+                                                    console.error(commitError);
+
+                                                    return fail(500, "Could not complete registration");
+                                                }
+
+                                                res.status(201).json({
+                                                    message: "Successfully registered for the event!"
+                                                });
+                                            });
+                                        }
+                                    );
+                                }
+                            );
+                        }
+                    );
+                }
+            );
+        });
+    }
+);
+
+// ===== CANCEL EVENT REGISTRATION - STUDENT =====
+
+app.delete(
+    "/api/student/opportunities/:id/cancel",
+    requireStudentApi,
+    function (req, res) {
+
+        const opportunityId = Number(req.params.id);
+        const userId = req.session.userId;
+
+        // Validate opportunity ID
+        if (!Number.isSafeInteger(opportunityId) || opportunityId <= 0) {
+            return res.status(400).json({
+                error: "Invalid opportunity ID"
+            });
+        }
+
+        // Cancel only the logged-in student's registration
+        // and only if the event has not started.
+        const sql = `
+            DELETE r
+            FROM registrations r
+            INNER JOIN opportunities o
+                ON r.opportunity_id = o.id
+            WHERE r.opportunity_id = ?
+              AND r.user_id = ?
+              AND r.status = 'registered'
+              AND r.verified = 0
+              AND o.event_date > NOW()
+        `;
+
+        conn.query(
+            sql,
+            [opportunityId, userId],
+            function (err, result) {
+
+                if (err) {
+                    console.error("Error cancelling registration:", err);
+
+                    return res.status(500).json({
+                        error: "Could not cancel registration"
+                    });
+                }
+
+                // No eligible registration was found
+                if (result.affectedRows === 0) {
+                    return res.status(409).json({
+                        error: "No cancellable registration found. The event may have started or attendance may already be recorded."
+                    });
+                }
+
+                res.json({
+                    message: "Your event registration has been cancelled successfully!"
+                });
+            }
+        );
+    }
+);
+
+// ===== MY EVENTS - STUDENT =====
+
+app.get("/api/student/my-events", requireStudentApi, function (req, res) {
+
+    const userId = req.session.userId;
+
+    const sql = `
+        SELECT
+            r.id AS registration_id,
+            r.opportunity_id,
+            r.status,
+            r.hours_claimed,
+            r.verified,
+            r.notes,
+            r.registered_at,
+
+            o.title,
+            o.description,
+            o.location,
+            o.event_date,
+            o.hours AS event_hours,
+            o.tags,
+
+            c.name AS club_name,
+            c.category AS club_category
+
+        FROM registrations r
+
+        INNER JOIN opportunities o
+            ON r.opportunity_id = o.id
+
+        INNER JOIN clubs c
+            ON o.club_id = c.id
+
+        WHERE r.user_id = ?
+
+        ORDER BY o.event_date DESC
+    `;
+
+    conn.query(sql, [userId], function (err, results) {
+
+        if (err) {
+
+            console.error("Error retrieving student events:", err);
+
+            return res.status(500).json({
+                error: "Could not retrieve your events"
+            });
+        }
+
+        res.json(results);
+    });
+});
+
+
 app.listen(3000, function () {
     console.log("Server running at http://localhost:3000");
 });

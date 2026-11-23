@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Volunteer Opportunities | Cluviora</title>
+
+    <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+
+    <div class="dashboard-layout">
+
+        <!-- Student Sidebar -->
+        <aside class="sidebar">
+
+            <h2>Cluviora</h2>
+
+            <nav>
+                <ul>
+                    <li><a href="/dashboard">Overview</a></li>
+                    <li><a href="/clubs">Explore Clubs</a></li>
+                    <li><a href="/opportunities" class="active">Volunteer Opportunities</a></li>
+                    <li><a href="/my-events">My Events</a></li>
+                    <li><a href="/profile">My Profile</a></li>
+                    <li><a href="/logout">Logout</a></li>
+                </ul>
+            </nav>
+
+        </aside>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+
+            <div class="explore-header">
+
+            </nav>
+
+        </aside>
+
+        <!-- Main Content -->
+        <main class="dashboard-main">
+
+            <div class="explore-header">
+
+                <h1>Volunteer Opportunities</h1>
+
+                <p>
+                    Discover meaningful volunteer events,
+                    contribute to your community, and earn
+                    verified volunteer hours.
+                </p>
+
+            </div>
+
+            <!-- Search and Filters -->
+            <div class="opportunity-filters">
+
+                <input
+                    type="search"
+                    id="opportunitySearch"
+                    placeholder="Search volunteer opportunities..."
+                    aria-label="Search opportunities"
+                >
+
+                <select id="opportunityCategoryFilter"
+                        aria-label="Filter by category">
+
+                    <option value="All">All Categories</option>
+                    <option value="Technology">Technology</option>
+                    <option value="Education">Education</option>
+                    <option value="Environment">Environment</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Community Service">Community Service</option>
+                    <option value="Arts &amp; Culture">Arts &amp; Culture</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Other">Other</option>
+
+                </select>
+
+                <select id="opportunityRegistrationFilter"
+                        aria-label="Filter by registration">
+
+                    <option value="All">All Opportunities</option>
+                    <option value="Registered">My Registrations</option>
+                    <option value="Not Registered">Not Registered</option>
+
+                </select>
+
+            </div>
+
+            <!-- Results Count -->
+            <p id="opportunityResultsCount"></p>
+
+            <!-- Success or Error Messages -->
+            <p id="studentOpportunityMessage" aria-live="polite"></p>
+
+            <!-- Opportunity Cards -->
+            <div id="studentOpportunitiesList"></div>
+
+        </main>
+
+    </div>
+
+    <script src="/js/opportunities.js"></script>
+
+</body>
+
+</html>

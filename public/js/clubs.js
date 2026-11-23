@@ -94,8 +94,112 @@ function displayClubs(clubs) {
             joinBtn.className = "join-club-btn";
         }
 
-        // Enable after membership functionality is implemented
+        
+// ===== JOIN CLUB BUTTON =====
+
+// Only enable joining for students who are not members
+if (Number(club.is_member) === 0) {
+
+    joinBtn.addEventListener("click", async function () {
+
+        // Prevent multiple clicks
         joinBtn.disabled = true;
+        joinBtn.textContent = "Joining...";
+
+        try {
+
+            const response = await fetch(
+                `/api/student/clubs/${club.id}/join`,
+                {
+                    method: "POST"
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    result.error || "Could not join club"
+                );
+            }
+
+            // Display success message
+            studentClubMessage.textContent = result.message;
+            studentClubMessage.style.color = "green";
+
+            // Refresh clubs and membership counts
+            await loadStudentClubs();
+
+        } catch (error) {
+
+            console.error(error);
+
+            studentClubMessage.textContent = error.message;
+            studentClubMessage.style.color = "red";
+
+            joinBtn.disabled = false;
+            joinBtn.textContent = "Join Club";
+        }
+    });
+
+
+// ===== LEAVE CLUB BUTTON =====
+
+} else {
+
+    joinBtn.addEventListener("click", async function () {
+
+        // Ask student to confirm
+        const confirmed = confirm(
+            `Are you sure you want to leave "${club.name}"?`
+        );
+
+        if (!confirmed) {
+            return;
+        }
+
+        // Prevent multiple clicks
+        joinBtn.disabled = true;
+        joinBtn.textContent = "Leaving...";
+
+        try {
+
+            const response = await fetch(
+                `/api/student/clubs/${club.id}/leave`,
+                {
+                    method: "DELETE"
+                }
+            );
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    result.error || "Could not leave club"
+                );
+            }
+
+            // Display success message
+            studentClubMessage.textContent = result.message;
+            studentClubMessage.style.color = "green";
+
+            // Refresh club cards and membership counts
+            await loadStudentClubs();
+
+        } catch (error) {
+
+            console.error(error);
+
+            studentClubMessage.textContent = error.message;
+            studentClubMessage.style.color = "red";
+
+            joinBtn.disabled = false;
+            joinBtn.textContent = "Leave Club";
+        }
+    });
+}
+
+
 
         // Add elements to card
         card.appendChild(name);
@@ -107,3 +211,54 @@ function displayClubs(clubs) {
         studentClubsList.appendChild(card);
     });
 }
+
+// ===== SEARCH AND FILTER CLUBS =====
+
+function filterClubs() {
+
+    const searchText = clubSearch.value.toLowerCase().trim();
+
+    const selectedCategory = categoryFilter.value;
+
+    const selectedMembership = membershipFilter.value;
+
+    const filteredClubs = allClubs.filter(function (club) {
+
+        // Search by name, description or category
+        const matchesSearch =
+            club.name.toLowerCase().includes(searchText) ||
+            club.description.toLowerCase().includes(searchText) ||
+            club.category.toLowerCase().includes(searchText);
+
+        // Filter by category
+        const matchesCategory =
+            selectedCategory === "All" ||
+            club.category === selectedCategory;
+
+        // Filter by membership
+        const matchesMembership =
+            selectedMembership === "All" ||
+            (selectedMembership === "Joined" &&
+                Number(club.is_member) === 1) ||
+            (selectedMembership === "Not Joined" &&
+                Number(club.is_member) === 0);
+
+        return matchesSearch &&
+               matchesCategory &&
+               matchesMembership;
+    });
+
+    displayClubs(filteredClubs);
+}
+
+// Search while the student types
+clubSearch.addEventListener("input", filterClubs);
+
+// Filter when category changes
+categoryFilter.addEventListener("change", filterClubs);
+
+// Filter when membership changes
+membershipFilter.addEventListener("change", filterClubs);
+
+// Load clubs when the page opens
+loadStudentClubs();
